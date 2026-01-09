@@ -12,7 +12,6 @@ import {
   Button,
   Chip,
   Tooltip,
-  LinearProgress,
   Alert,
 } from "@mui/material";
 import ArrowBackOutlinedIcon from "@mui/icons-material/ArrowBackOutlined";
@@ -24,9 +23,8 @@ import { useModelManager } from "../../features/model-management/hooks/useModelM
 import { getAllModels } from "../../features/model-management/lib/model-configs";
 
 const PopupLLMSetup: React.FC<NavigationProps> = ({ onNavigate }) => {
-  const { currentModelId, isLoading, loadingProgress, capabilities, error, loadModel } = useModelManager();
+  const { currentModelId, capabilities, error } = useModelManager();
   
-  // Initialize with current model or recommended model
   const getInitialModel = () => {
     if (currentModelId) return currentModelId;
     if (capabilities?.recommendedModelId) return capabilities.recommendedModelId;
@@ -35,8 +33,6 @@ const PopupLLMSetup: React.FC<NavigationProps> = ({ onNavigate }) => {
 
   const [selectedModel, setSelectedModel] = useState<string>(getInitialModel);
 
-  // Update selected model when currentModelId or capabilities change
-  // But only if selectedModel is still empty
   React.useEffect(() => {
     if (!selectedModel) {
       if (currentModelId) {
@@ -51,7 +47,12 @@ const PopupLLMSetup: React.FC<NavigationProps> = ({ onNavigate }) => {
 
   const handleConfirm = async () => {
     if (!selectedModel) return;
-    await loadModel(selectedModel);
+    
+    // Open model loader tab with modelId as query parameter
+    chrome.tabs.create({
+      url: chrome.runtime.getURL(`model-loader.html?modelId=${selectedModel}`),
+      active: true,
+    });
   };
 
   const getTierColor = (tier: string) => {
@@ -74,7 +75,6 @@ const PopupLLMSetup: React.FC<NavigationProps> = ({ onNavigate }) => {
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
-      {/* Header */}
       <Box
         sx={{
           display: "flex",
@@ -88,7 +88,6 @@ const PopupLLMSetup: React.FC<NavigationProps> = ({ onNavigate }) => {
           size="small"
           onClick={() => onNavigate("home")}
           sx={{ mr: 2, color: "text.primary" }}
-          disabled={isLoading}
         >
           <ArrowBackOutlinedIcon />
         </IconButton>
@@ -97,7 +96,6 @@ const PopupLLMSetup: React.FC<NavigationProps> = ({ onNavigate }) => {
         </Typography>
       </Box>
 
-      {/* System Info */}
       {capabilities && (
         <Box sx={{ p: 2, bgcolor: "background.paper", borderBottom: 1, borderColor: "divider" }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
@@ -124,16 +122,14 @@ const PopupLLMSetup: React.FC<NavigationProps> = ({ onNavigate }) => {
         </Box>
       )}
 
-      {/* Error Display */}
       {error && (
         <Alert severity="error" sx={{ m: 2, mb: 0 }}>
           {error}
         </Alert>
       )}
 
-      {/* Model List */}
       <Box sx={{ flex: 1, overflow: "auto", p: 2 }}>
-        <RadioGroup value={selectedModel} onChange={(e) => !isLoading && setSelectedModel(e.target.value)}>
+        <RadioGroup value={selectedModel} onChange={(e) => setSelectedModel(e.target.value)}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             {models.map((model) => {
               const canRun = canRunModel(model.vramRequired);
@@ -146,17 +142,17 @@ const PopupLLMSetup: React.FC<NavigationProps> = ({ onNavigate }) => {
                   sx={{
                     border: selectedModel === model.id ? 2 : 1,
                     borderColor: selectedModel === model.id ? "primary.main" : "divider",
-                    cursor: isLoading || !canRun ? "not-allowed" : "pointer",
-                    opacity: isLoading || !canRun ? 0.5 : 1,
+                    cursor: !canRun ? "not-allowed" : "pointer",
+                    opacity: !canRun ? 0.5 : 1,
                     bgcolor: !canRun ? "action.disabledBackground" : "background.paper",
                   }}
-                  onClick={() => !isLoading && canRun && setSelectedModel(model.id)}
+                  onClick={() => canRun && setSelectedModel(model.id)}
                 >
                   <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
                     <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
                       <FormControlLabel
                         value={model.id}
-                        control={<Radio size="small" disabled={isLoading || !canRun} />}
+                        control={<Radio size="small" disabled={!canRun} />}
                         label=""
                         sx={{ m: 0 }}
                       />
@@ -235,31 +231,12 @@ const PopupLLMSetup: React.FC<NavigationProps> = ({ onNavigate }) => {
         </RadioGroup>
       </Box>
 
-      {/* Loading Progress */}
-      {isLoading && (
-        <Box sx={{ px: 2, pb: 2 }}>
-          <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              Downloading and initializing model...
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-              {loadingProgress.toFixed(0)}%
-            </Typography>
-          </Box>
-          <LinearProgress variant="determinate" value={loadingProgress} />
-          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
-            This may take a few minutes on first download
-          </Typography>
-        </Box>
-      )}
-
-      {/* Confirm Button */}
       <Box sx={{ p: 2, borderTop: 1, borderColor: "divider" }}>
         <Button
           fullWidth
           variant="contained"
           onClick={handleConfirm}
-          disabled={!selectedModel || isLoading || selectedModel === currentModelId}
+          disabled={!selectedModel}
           sx={{
             bgcolor: "primary.main",
             color: "primary.contrastText",
@@ -268,11 +245,7 @@ const PopupLLMSetup: React.FC<NavigationProps> = ({ onNavigate }) => {
             },
           }}
         >
-          {isLoading
-            ? `Installing... ${loadingProgress.toFixed(0)}%`
-            : selectedModel === currentModelId
-            ? "Model Already Installed"
-            : "Install Model"}
+          Install Model
         </Button>
       </Box>
     </Box>

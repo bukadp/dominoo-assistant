@@ -25,6 +25,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         popup: resolve(__dirname, "popup.html"),
+        "model-loader": resolve(__dirname, "model-loader.html"),
         background: resolve(__dirname, "src/background/service-worker.ts"),
       },
       output: {
