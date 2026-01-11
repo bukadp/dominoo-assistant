@@ -157,6 +157,7 @@ class WebLLMManager {
   }
 
   async chat(userMessage: string): Promise<string> {
+    console.log('this.state', this.state)
     if (!this.state.engine || !this.state.isEnabled) {
       throw new Error("Model not loaded or disabled");
     }
